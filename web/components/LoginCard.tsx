@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import LoginButton from "./LoginButton";
+import Logo from "./Logo";
 
 const messages: Record<string, string> = {
   google: "Cancelaste o falló el inicio de sesión con Google.",
@@ -35,14 +35,7 @@ export default function LoginCard({
   return (
     <div className="flex min-h-screen items-center justify-center px-5">
       <div className="card w-full max-w-md p-8">
-        <Link href="/" className="flex items-center gap-2">
-          <span className="grid h-9 w-9 place-items-center rounded-lg bg-brand font-black text-ink-950">
-            K
-          </span>
-          <span className="text-lg font-bold text-white">
-            Kat<span className="text-brand">Plugins</span>
-          </span>
-        </Link>
+        <Logo />
 
         <h1 className="mt-8 text-2xl font-bold text-white">Inicia sesión</h1>
         <p className="mt-2 text-sm text-slate-400">

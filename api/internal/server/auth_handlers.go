@@ -173,6 +173,7 @@ func (s *Server) handleVerify(w http.ResponseWriter, r *http.Request) {
 	if username == "" {
 		username = st.Profile.Email
 	}
+	st.Profile.Tier = s.reconcileTier(r.Context(), st.Profile)
 	writeJSON(w, http.StatusOK, map[string]any{
 		"valid": true,
 		"userData": map[string]any{

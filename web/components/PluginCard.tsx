@@ -2,13 +2,13 @@ import type { Plugin, PluginAccess, Tier } from "@/lib/types";
 
 const tierBadge: Record<Tier, string> = {
   free: "badge-free",
-  premium: "badge-premium",
+  plus: "badge-plus",
   pro: "badge-pro",
 };
 
 const tierLabel: Record<Tier, string> = {
   free: "Free",
-  premium: "Premium",
+  plus: "Plus",
   pro: "Pro",
 };
 

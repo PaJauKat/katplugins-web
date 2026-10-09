@@ -27,8 +27,21 @@ do $$ begin
 exception when duplicate_object then null; end $$;
 
 do $$ begin
-  create type public.subscription_tier as enum ('free', 'premium', 'pro');
+  create type public.subscription_tier as enum ('free', 'plus', 'pro');
 exception when duplicate_object then null; end $$;
+
+-- Migracion: renombra el valor 'premium' a 'plus' en esquemas existentes.
+do $$ begin
+  if exists (
+    select 1 from pg_enum e join pg_type t on t.oid = e.enumtypid
+    where t.typname = 'subscription_tier' and e.enumlabel = 'premium'
+  ) and not exists (
+    select 1 from pg_enum e join pg_type t on t.oid = e.enumtypid
+    where t.typname = 'subscription_tier' and e.enumlabel = 'plus'
+  ) then
+    alter type public.subscription_tier rename value 'premium' to 'plus';
+  end if;
+end $$;
 
 -- ------------------------------------------------------------
 -- Perfiles (identidad propia, ligada a Google por google_sub)
@@ -50,6 +63,7 @@ alter table public.profiles drop constraint if exists profiles_id_fkey;
 alter table public.profiles alter column id drop default;
 alter table public.profiles alter column id set default gen_random_uuid();
 alter table public.profiles add column if not exists google_sub text;
+alter table public.profiles add column if not exists flow_customer_id text;
 create unique index if not exists profiles_email_key on public.profiles (lower(email));
 create unique index if not exists profiles_google_sub_key on public.profiles (google_sub) where google_sub is not null;
 
@@ -101,13 +115,37 @@ create table if not exists public.audit_log (
 );
 
 -- ------------------------------------------------------------
+-- Suscripciones (Flow / LemonSqueezy / NowPayments)
+-- El backend activa el tier 'plus' mientras exista una suscripcion
+-- activa y no vencida (current_period_end).
+-- ------------------------------------------------------------
+create table if not exists public.subscriptions (
+  id                 uuid primary key default gen_random_uuid(),
+  user_id            uuid not null references public.profiles(id) on delete cascade,
+  provider           text not null,               -- flow | lemonsqueezy | nowpayments
+  plan               text not null default 'plus',
+  interval           text not null,               -- monthly | annual
+  status             text not null default 'pending', -- pending|active|past_due|cancelled|expired
+  external_id        text,
+  checkout_ref       text,
+  amount             numeric(12,2) not null default 0,
+  currency           text not null default 'CLP',
+  current_period_end timestamptz,
+  created_at         timestamptz not null default now(),
+  updated_at         timestamptz not null default now()
+);
+
+create index if not exists subscriptions_user_idx on public.subscriptions (user_id);
+create unique index if not exists subscriptions_external_key on public.subscriptions (provider, external_id) where external_id is not null;
+
+-- ------------------------------------------------------------
 -- Helpers
 -- ------------------------------------------------------------
 create or replace function public.tier_rank(t public.subscription_tier)
 returns int language sql immutable as $$
   select case t
     when 'free' then 0
-    when 'premium' then 1
+    when 'plus' then 1
     when 'pro' then 2
     else 0
   end;
@@ -128,6 +166,10 @@ drop trigger if exists trg_plugin_access_updated on public.plugin_access;
 create trigger trg_plugin_access_updated before update on public.plugin_access
   for each row execute function public.set_updated_at();
 
+drop trigger if exists trg_subscriptions_updated on public.subscriptions;
+create trigger trg_subscriptions_updated before update on public.subscriptions
+  for each row execute function public.set_updated_at();
+
 -- ------------------------------------------------------------
 -- Seguridad
 -- El backend Go usa la secret key (service_role), que bypassa RLS.
@@ -138,13 +180,14 @@ alter table public.profiles      enable row level security;
 alter table public.plugins       enable row level security;
 alter table public.plugin_access enable row level security;
 alter table public.audit_log     enable row level security;
+alter table public.subscriptions enable row level security;
 
 do $$ begin
-  revoke all on public.profiles, public.plugins, public.plugin_access, public.audit_log from anon, authenticated;
+  revoke all on public.profiles, public.plugins, public.plugin_access, public.audit_log, public.subscriptions from anon, authenticated;
 end $$;
 
 grant usage on schema public to service_role;
-grant all on public.profiles, public.plugins, public.plugin_access, public.audit_log to service_role;
+grant all on public.profiles, public.plugins, public.plugin_access, public.audit_log, public.subscriptions to service_role;
 grant all on all sequences in schema public to service_role;
 
 -- Elimina politicas heredadas del esquema anterior (ya no aplican)
@@ -169,28 +212,28 @@ insert into public.plugins (slug, name, description, required_tier, sort_order, 
   ('devtools',           'Developer Tools',     '', 'free',     3,  'com.safe.devtools'),
   ('neverlogout',        'NeverLogout',         '', 'free',     4,  'com.safe.neverlogout'),
   ('playeratktimer',     'Player Attack Timer', '', 'free',     5,  'com.safe.playerAtkTimer'),
-  ('alchemicalhydra',    'Alchemical Hydra',    '', 'premium', 10,  'com.safe.alchemicalhydra'),
-  ('brutus',             'Brutus',              '', 'premium', 11,  'com.safe.brutus'),
-  ('clueswaps',          'Clue Swaps',          '', 'premium', 12,  'com.safe.clueswaps'),
-  ('coxcmchest',         'Cox CM chest',        '', 'premium', 13,  'com.safe.coxcmchest'),
-  ('coxcmchestsimple',   'Cox CM Chest simple', '', 'premium', 14,  'com.safe.coxcmchestsimple'),
-  ('coxkat',             'Cox Kat',             '', 'premium', 15,  'com.safe.coxkat'),
-  ('duke',               'Duke',                '', 'premium', 16,  'com.safe.duke'),
-  ('emoteskat',          'Emotes',              '', 'premium', 17,  'com.safe.emoteskat'),
-  ('faldita',            'Nightmare',           '', 'premium', 18,  'com.safe.faldita'),
-  ('generalpvm',         'General pvm',         '', 'premium', 19,  'com.safe.generalPvm'),
-  ('hueycoatl',          'Hueycoatl',           '', 'premium', 21,  'com.safe.hueycoatl'),
-  ('hydra',              'Hydra Helper',        '', 'premium', 22,  'com.safe.hydra'),
-  ('jads',               'Jads',                '', 'premium', 23,  'com.safe.jads'),
-  ('levi',               'Levi',                '', 'premium', 24,  'com.safe.levi'),
-  ('madangel',           'Mad Angel',           '', 'premium', 25,  'com.safe.madangel'),
-  ('maggotkingkat',      'Maggot Kat',          '', 'premium', 26,  'com.safe.maggotkingkat'),
-  ('mirror',             'Mirror',              '', 'premium', 27,  'com.prohibidos.mirror'),
-  ('mokhaiotl',          'Mokhaiotl',           '', 'premium', 28,  'com.safe.mokhaiotl'),
-  ('sepulchrekat',       'Sepulchre Kat',       '', 'premium', 29,  'com.safe.sepulchrekat'),
-  ('tormenteddemons',    'Tormented demons',    '', 'premium', 30,  'com.safe.tormentedDemons'),
-  ('vardorvis',          'Vardorvis',           '', 'premium', 31,  'com.safe.vardorvis'),
-  ('yama',               'Yama',                '', 'premium', 32,  'com.safe.yama'),
+  ('alchemicalhydra',    'Alchemical Hydra',    '', 'plus', 10,  'com.safe.alchemicalhydra'),
+  ('brutus',             'Brutus',              '', 'plus', 11,  'com.safe.brutus'),
+  ('clueswaps',          'Clue Swaps',          '', 'plus', 12,  'com.safe.clueswaps'),
+  ('coxcmchest',         'Cox CM chest',        '', 'plus', 13,  'com.safe.coxcmchest'),
+  ('coxcmchestsimple',   'Cox CM Chest simple', '', 'plus', 14,  'com.safe.coxcmchestsimple'),
+  ('coxkat',             'Cox Kat',             '', 'plus', 15,  'com.safe.coxkat'),
+  ('duke',               'Duke',                '', 'plus', 16,  'com.safe.duke'),
+  ('emoteskat',          'Emotes',              '', 'plus', 17,  'com.safe.emoteskat'),
+  ('faldita',            'Nightmare',           '', 'plus', 18,  'com.safe.faldita'),
+  ('generalpvm',         'General pvm',         '', 'plus', 19,  'com.safe.generalPvm'),
+  ('hueycoatl',          'Hueycoatl',           '', 'plus', 21,  'com.safe.hueycoatl'),
+  ('hydra',              'Hydra Helper',        '', 'plus', 22,  'com.safe.hydra'),
+  ('jads',               'Jads',                '', 'plus', 23,  'com.safe.jads'),
+  ('levi',               'Levi',                '', 'plus', 24,  'com.safe.levi'),
+  ('madangel',           'Mad Angel',           '', 'plus', 25,  'com.safe.madangel'),
+  ('maggotkingkat',      'Maggot Kat',          '', 'plus', 26,  'com.safe.maggotkingkat'),
+  ('mirror',             'Mirror',              '', 'plus', 27,  'com.prohibidos.mirror'),
+  ('mokhaiotl',          'Mokhaiotl',           '', 'plus', 28,  'com.safe.mokhaiotl'),
+  ('sepulchrekat',       'Sepulchre Kat',       '', 'plus', 29,  'com.safe.sepulchrekat'),
+  ('tormenteddemons',    'Tormented demons',    '', 'plus', 30,  'com.safe.tormentedDemons'),
+  ('vardorvis',          'Vardorvis',           '', 'plus', 31,  'com.safe.vardorvis'),
+  ('yama',               'Yama',                '', 'plus', 32,  'com.safe.yama'),
   ('coliseo',            'Coliseo',             '', 'pro',     40,  'com.safe.coliseo'),
   ('infernal',           'Inferno',             '', 'pro',     41,  'com.safe.infernal'),
   ('katparty',           'PartyKat',            '', 'pro',     42,  'com.privado.katparty'),

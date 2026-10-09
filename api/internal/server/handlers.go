@@ -27,7 +27,7 @@ func (s *Server) handlePlugins(w http.ResponseWriter, r *http.Request) {
 	tier := "anon"
 	overrides := map[string]bool{}
 	if st != nil {
-		tier = st.Profile.Tier
+		tier = s.reconcileTier(r.Context(), st.Profile)
 		if o, err := s.loadOverrides(r.Context(), st.Profile.ID); err == nil {
 			overrides = o
 		}
@@ -51,6 +51,8 @@ func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "no se pudo cargar los accesos")
 		return
 	}
+
+	st.Profile.Tier = s.reconcileTier(r.Context(), st.Profile)
 
 	writeJSON(w, http.StatusOK, models.MeResponse{
 		User:    *st.Profile,

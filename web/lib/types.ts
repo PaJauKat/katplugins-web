@@ -1,4 +1,4 @@
-export type Tier = "free" | "premium" | "pro";
+export type Tier = "free" | "plus" | "pro";
 export type AccessSource = "tier" | "granted" | "revoked";
 
 export interface User {
@@ -42,6 +42,46 @@ export interface AdminUser {
 
 export const TIERS: { id: Tier; name: string; price: string; tagline: string }[] = [
   { id: "free", name: "Free", price: "$0", tagline: "Para empezar" },
-  { id: "premium", name: "Premium", price: "$5", tagline: "Lo mas elegido" },
+  { id: "plus", name: "Plus", price: "$3", tagline: "Lo mas elegido" },
   { id: "pro", name: "Pro", price: "$10", tagline: "Todo incluido" },
 ];
+
+export type BillingInterval = "monthly" | "annual";
+export type BillingProviderId = "flow" | "lemonsqueezy" | "nowpayments";
+
+export interface BillingProvider {
+  id: BillingProviderId;
+  name: string;
+  currency: "CLP" | "USD";
+  intervals: BillingInterval[];
+  enabled: boolean;
+}
+
+export interface BillingConfig {
+  plan: {
+    id: "plus";
+    name: string;
+    prices: {
+      monthly: { clp: number; usd: number };
+      annual: { clp: number; usd: number };
+    };
+  };
+  providers: BillingProvider[];
+}
+
+export interface Subscription {
+  id: string;
+  provider: string;
+  plan: string;
+  interval: string;
+  status: string;
+  amount: number;
+  currency: string;
+  current_period_end?: string;
+  created_at?: string;
+}
+
+export interface BillingStatus {
+  tier: Tier;
+  subscriptions: Subscription[];
+}

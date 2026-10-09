@@ -4,31 +4,38 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
-import type { MeResponse, Tier } from "@/lib/types";
+import type { BillingStatus, MeResponse, Tier } from "@/lib/types";
 import PluginCard from "./PluginCard";
 
 const tierClass: Record<Tier, string> = {
   free: "badge-free",
-  premium: "badge-premium",
+  plus: "badge-plus",
   pro: "badge-pro",
 };
 
 const tierName: Record<Tier, string> = {
   free: "Free",
-  premium: "Premium",
+  plus: "Plus",
   pro: "Pro",
 };
 
 export default function DashboardClient() {
   const router = useRouter();
   const [data, setData] = useState<MeResponse | null>(null);
+  const [billing, setBilling] = useState<BillingStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     api
       .me()
-      .then(setData)
+      .then((res) => {
+        setData(res);
+        api.billing
+          .status()
+          .then(setBilling)
+          .catch(() => setBilling(null));
+      })
       .catch((e) => {
         if ((e as { status?: number }).status === 401) {
           router.replace("/login?next=/dashboard");
@@ -66,7 +73,7 @@ export default function DashboardClient() {
               className="h-14 w-14 rounded-full border border-white/10"
             />
           ) : (
-            <div className="grid h-14 w-14 place-items-center rounded-full bg-brand text-xl font-black text-ink-950">
+            <div className="grid h-14 w-14 place-items-center rounded-full bg-brand text-xl font-black text-white">
               {(data.user.fullName || data.user.email || "?").charAt(0)}
             </div>
           )}
@@ -107,12 +114,45 @@ export default function DashboardClient() {
         </div>
       </section>
 
-      <section className="card p-6 text-sm text-slate-400">
-        <p>
-          ¿Quieres cambiar de plan o desbloquear un plugin? Escríbenos y el
-          administrador lo activará en tu cuenta.
-        </p>
-      </section>
+      <SubscriptionCard tier={data.user.tier} billing={billing} />
     </div>
+  );
+}
+
+function SubscriptionCard({
+  tier,
+  billing,
+}: {
+  tier: Tier;
+  billing: BillingStatus | null;
+}) {
+  const active = billing?.subscriptions?.find(
+    (s) => s.status === "active" || s.status === "past_due",
+  );
+
+  return (
+    <section className="card flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <h2 className="text-lg font-bold text-white">Tu suscripción</h2>
+        {active ? (
+          <p className="mt-1 text-sm text-slate-400">
+            Plan {tierName[tier]} · {active.provider} ·{" "}
+            {active.interval === "annual" ? "anual" : "mensual"}
+            {active.current_period_end
+              ? ` · renueva el ${new Date(active.current_period_end).toLocaleDateString()}`
+              : ""}
+          </p>
+        ) : (
+          <p className="mt-1 text-sm text-slate-400">
+            {tier === "free"
+              ? "Aún no tienes una suscripción activa."
+              : "Acceso otorgado manualmente."}
+          </p>
+        )}
+      </div>
+      <Link href="/#precios" className="btn-primary btn-sm shrink-0">
+        {active ? "Gestionar plan" : "Ver planes"}
+      </Link>
+    </section>
   );
 }

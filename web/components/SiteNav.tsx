@@ -5,6 +5,7 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import type { User } from "@/lib/types";
 import LoginButton from "./LoginButton";
+import Logo from "./Logo";
 import SignOutButton from "./SignOutButton";
 
 export default function SiteNav() {
@@ -20,31 +21,36 @@ export default function SiteNav() {
   }, []);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-white/10 bg-ink-950/80 backdrop-blur">
+    <header className="sticky top-0 z-40 border-b border-white/[0.08] bg-ink-950/80 backdrop-blur-xl">
       <div className="container-page flex h-16 items-center justify-between">
-        <Link href="/" className="flex items-center gap-2">
-          <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand font-black text-ink-950">
-            K
-          </span>
-          <span className="text-lg font-bold tracking-tight text-white">
-            Kat<span className="text-brand">Plugins</span>
-          </span>
-        </Link>
+        <Logo />
 
-        <nav className="hidden items-center gap-6 text-sm text-slate-300 md:flex">
-          <Link href="/#plugins" className="transition hover:text-white">
+        <nav className="hidden items-center gap-1 text-sm text-slate-400 md:flex">
+          <Link
+            href="/#plugins"
+            className="rounded-lg px-3 py-2 transition hover:bg-white/[0.04] hover:text-white"
+          >
             Plugins
           </Link>
-          <Link href="/#precios" className="transition hover:text-white">
+          <Link
+            href="/#precios"
+            className="rounded-lg px-3 py-2 transition hover:bg-white/[0.04] hover:text-white"
+          >
             Precios
           </Link>
           {user && (
-            <Link href="/dashboard" className="transition hover:text-white">
+            <Link
+              href="/dashboard"
+              className="rounded-lg px-3 py-2 transition hover:bg-white/[0.04] hover:text-white"
+            >
               Mi panel
             </Link>
           )}
           {user && (
-            <Link href="/admin" className="transition hover:text-white">
+            <Link
+              href="/admin"
+              className="rounded-lg px-3 py-2 transition hover:bg-white/[0.04] hover:text-white"
+            >
               Admin
             </Link>
           )}
@@ -52,7 +58,7 @@ export default function SiteNav() {
 
         <div className="flex items-center gap-3">
           {!ready ? (
-            <span className="h-8 w-24 animate-pulse rounded-lg bg-white/5" />
+            <span className="h-9 w-28 animate-pulse rounded-lg bg-white/5" />
           ) : user ? (
             <>
               <span className="hidden text-sm text-slate-400 sm:inline">

@@ -12,14 +12,15 @@ import (
 )
 
 type dbProfile struct {
-	ID        string `json:"id"`
-	Email     string `json:"email"`
-	GoogleSub string `json:"google_sub"`
-	FullName  string `json:"full_name"`
-	AvatarURL string `json:"avatar_url"`
-	Role      string `json:"role"`
-	Tier      string `json:"tier"`
-	CreatedAt string `json:"created_at"`
+	ID             string `json:"id"`
+	Email          string `json:"email"`
+	GoogleSub      string `json:"google_sub"`
+	FullName       string `json:"full_name"`
+	AvatarURL      string `json:"avatar_url"`
+	Role           string `json:"role"`
+	Tier           string `json:"tier"`
+	FlowCustomerID string `json:"flow_customer_id"`
+	CreatedAt      string `json:"created_at"`
 }
 
 type dbPlugin struct {
@@ -74,7 +75,7 @@ func (p dbPlugin) toModel(baseURL string) models.Plugin {
 	return m
 }
 
-var validTiers = map[string]int{"free": 0, "premium": 1, "pro": 2}
+var validTiers = map[string]int{"free": 0, "plus": 1, "pro": 2}
 
 func tierRank(t string) int {
 	if r, ok := validTiers[t]; ok {

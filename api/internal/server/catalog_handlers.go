@@ -23,6 +23,7 @@ func (s *Server) handleEntitlements(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	st.Profile.Tier = s.reconcileTier(r.Context(), st.Profile)
 	access := s.buildAccess(st.Profile.Tier, plugins, overrides)
 	enabled := make([]models.Plugin, 0, len(access))
 	for _, pa := range access {

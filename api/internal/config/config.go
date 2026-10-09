@@ -22,6 +22,24 @@ type Config struct {
 	SyncToken          string // token para el build (sync de plugins)
 	AdminEmails        map[string]bool
 	AllowedOrigins     []string
+
+	// Pasarelas de pago
+	FlowBaseURL     string // base URL de la API de Flow (ej: https://www.flow.cl/api)
+	FlowAPIKey      string
+	FlowSecretKey   string
+	FlowPlanMonthly string // planId del plan mensual (Plus)
+	FlowPlanAnnual  string // planId del plan anual (Plus)
+
+	LemonAPIKey         string
+	LemonStoreID        string
+	LemonVariantMonthly string
+	LemonVariantAnnual  string
+	LemonCurrency       string
+	LemonWebhookSecret  string
+
+	NowPaymentsAPIKey    string
+	NowPaymentsIPNSecret string
+	NowPaymentsAnnualUSD string // precio anual en USD para cripto (default 30)
 }
 
 // Load lee la configuracion de entorno. Si existe un archivo .env (en el
@@ -44,6 +62,23 @@ func Load() *Config {
 		SyncToken:          strings.TrimSpace(os.Getenv("SYNC_TOKEN")),
 		AdminEmails:        parseEmails(os.Getenv("ADMIN_EMAILS")),
 		AllowedOrigins:     splitCSV(os.Getenv("ALLOWED_ORIGINS")),
+
+		FlowBaseURL:     strings.TrimRight(firstNonEmpty(os.Getenv("FLOW_BASE_URL"), "https://www.flow.cl/api"), "/"),
+		FlowAPIKey:      strings.TrimSpace(os.Getenv("FLOW_API_KEY")),
+		FlowSecretKey:   strings.TrimSpace(os.Getenv("FLOW_SECRET_KEY")),
+		FlowPlanMonthly: strings.TrimSpace(os.Getenv("FLOW_PLAN_ID_MONTHLY")),
+		FlowPlanAnnual:  strings.TrimSpace(os.Getenv("FLOW_PLAN_ID_ANNUAL")),
+
+		LemonAPIKey:         strings.TrimSpace(os.Getenv("LEMONSQUEEZY_API_KEY")),
+		LemonStoreID:        strings.TrimSpace(os.Getenv("LEMONSQUEEZY_STORE_ID")),
+		LemonVariantMonthly: strings.TrimSpace(os.Getenv("LEMONSQUEEZY_VARIANT_ID_MONTHLY")),
+		LemonVariantAnnual:  strings.TrimSpace(os.Getenv("LEMONSQUEEZY_VARIANT_ID_ANNUAL")),
+		LemonCurrency:       strings.ToUpper(firstNonEmpty(os.Getenv("LEMONSQUEEZY_CURRENCY"), "USD")),
+		LemonWebhookSecret:  strings.TrimSpace(os.Getenv("LEMONSQUEEZY_WEBHOOK_SECRET")),
+
+		NowPaymentsAPIKey:    firstNonEmpty(os.Getenv("IPN_API_KEY"), os.Getenv("NOWPAYMENTS_API_KEY")),
+		NowPaymentsIPNSecret: firstNonEmpty(os.Getenv("IPN_SECRET_KEY"), os.Getenv("NOWPAYMENTS_IPN_SECRET")),
+		NowPaymentsAnnualUSD: firstNonEmpty(os.Getenv("IPN_ANNUAL_USD"), "30"),
 	}
 }
 
@@ -60,6 +95,39 @@ func (c *Config) CookieSecure() bool {
 // GoogleEnabled indica si el login con Google esta configurado.
 func (c *Config) GoogleEnabled() bool {
 	return c.GoogleClientID != "" && c.GoogleClientSecret != ""
+}
+
+// FlowEnabled indica si Flow esta configurado para suscripciones.
+func (c *Config) FlowEnabled() bool {
+	return c.FlowAPIKey != "" && c.FlowSecretKey != "" &&
+		c.FlowPlanMonthly != "" && c.FlowPlanAnnual != ""
+}
+
+// LemonEnabled indica si LemonSqueezy esta configurado.
+func (c *Config) LemonEnabled() bool {
+	return c.LemonAPIKey != "" && c.LemonStoreID != "" &&
+		c.LemonVariantMonthly != "" && c.LemonVariantAnnual != ""
+}
+
+// NowPaymentsEnabled indica si NowPayments (cripto) esta configurado.
+func (c *Config) NowPaymentsEnabled() bool {
+	return c.NowPaymentsAPIKey != "" && c.NowPaymentsIPNSecret != ""
+}
+
+// FlowPlanID devuelve el planId de Flow segun el intervalo ("monthly"/"annual").
+func (c *Config) FlowPlanID(interval string) string {
+	if interval == "annual" {
+		return c.FlowPlanAnnual
+	}
+	return c.FlowPlanMonthly
+}
+
+// LemonVariantID devuelve el variant ID de LemonSqueezy segun el intervalo.
+func (c *Config) LemonVariantID(interval string) string {
+	if interval == "annual" {
+		return c.LemonVariantAnnual
+	}
+	return c.LemonVariantMonthly
 }
 
 // IsAdminEmail indica si el correo pertenece a un admin definido por entorno.

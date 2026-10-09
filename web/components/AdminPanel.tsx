@@ -5,11 +5,11 @@ import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import type { AdminUser, MeResponse, Plugin, Tier } from "@/lib/types";
 
-const TIERS: Tier[] = ["free", "premium", "pro"];
+const TIERS: Tier[] = ["free", "plus", "pro"];
 
 const tierClass: Record<Tier, string> = {
   free: "badge-free",
-  premium: "badge-premium",
+  plus: "badge-plus",
   pro: "badge-pro",
 };
 

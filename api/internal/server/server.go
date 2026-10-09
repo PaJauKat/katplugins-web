@@ -43,6 +43,16 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/me", s.requireAuth(s.handleMe))
 	mux.HandleFunc("GET /api/entitlements", s.requireAuth(s.handleEntitlements))
 
+	// Facturacion / pasarelas de pago
+	mux.HandleFunc("GET /api/billing/providers", s.handleBillingProviders)
+	mux.HandleFunc("POST /api/billing/checkout", s.requireAuth(s.handleBillingCheckout))
+	mux.HandleFunc("GET /api/billing/subscription", s.requireAuth(s.handleBillingSubscription))
+	mux.HandleFunc("GET /api/billing/flow/return", s.handleFlowReturn)
+	mux.HandleFunc("POST /api/billing/flow/return", s.handleFlowReturn)
+	mux.HandleFunc("POST /api/webhooks/flow", s.handleFlowWebhook)
+	mux.HandleFunc("POST /api/webhooks/lemonsqueezy", s.handleLemonWebhook)
+	mux.HandleFunc("POST /api/webhooks/nowpayments", s.handleNowPaymentsWebhook)
+
 	mux.HandleFunc("GET /api/admin/users", s.requireAdmin(s.handleAdminListUsers))
 	mux.HandleFunc("POST /api/admin/users/tier", s.requireAdmin(s.handleAdminSetTier))
 	mux.HandleFunc("GET /api/admin/users/access", s.requireAdmin(s.handleAdminUserAccess))

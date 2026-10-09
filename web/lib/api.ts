@@ -1,4 +1,12 @@
-import type { AdminUser, MeResponse, Plugin, PluginAccess } from "@/lib/types";
+import type {
+  AdminUser,
+  BillingConfig,
+  BillingInterval,
+  BillingStatus,
+  MeResponse,
+  Plugin,
+  PluginAccess,
+} from "@/lib/types";
 
 // En produccion (Vercel Services) la API vive en el mismo origen bajo /api.
 // Si despliegas el backend aparte, define NEXT_PUBLIC_API_BASE con su URL.
@@ -31,6 +39,15 @@ export const api = {
   plugins: () => apiFetch<{ plugins: PluginAccess[] }>("/plugins"),
   logout: () =>
     apiFetch<{ ok: boolean }>("/auth/logout", { method: "POST" }),
+  billing: {
+    config: () => apiFetch<BillingConfig>("/billing/providers"),
+    status: () => apiFetch<BillingStatus>("/billing/subscription"),
+    checkout: (provider: string, interval: BillingInterval) =>
+      apiFetch<{ url: string }>("/billing/checkout", {
+        method: "POST",
+        body: JSON.stringify({ provider, interval }),
+      }),
+  },
   admin: {
     users: () => apiFetch<{ users: AdminUser[] }>("/admin/users"),
     setTier: (userId: string, tier: string) =>
